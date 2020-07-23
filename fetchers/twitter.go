@@ -3,6 +3,7 @@ package fetchers
 import (
 	"errors"
 	"fmt"
+	"log"
 	"net/url"
 	"time"
 
@@ -76,7 +77,7 @@ func (f *TwitterFetcher) getUserTimeline(user string, time int64) ([]ReplyMessag
 		resources := make([]Resource, 0, len(tweet.ExtendedEntities.Media))
 		// 遍历扩展字段，找图像/视频等资源，注意扩展字段内的才是原始资源
 		// ref: https://developer.twitter.com/en/docs/tweets/data-dictionary/overview/extended-entities-object
-		for _, media := range tweet.ExtendedEntities.Media {
+		for index, media := range tweet.ExtendedEntities.Media {
 			var rType int
 			var rURL string
 
@@ -100,8 +101,11 @@ func (f *TwitterFetcher) getUserTimeline(user string, time int64) ([]ReplyMessag
 			if rURL != "" {
 				resources = append(resources, Resource{rURL, rType, rURL})
 			}
+
+			log.Printf("got tweet id %d\nmedia[%d]\ntype: %s\nurl: %s", tweet.Id, index, media.Type, rURL)
 		}
 		ret = append(ret, ReplyMessage{resources, tweet.FullText, nil})
+		log.Printf("got tweet id %d\ntext: %s\nres[len]: %d", tweet.Id, tweet.FullText, len(resources))
 	}
 	return ret, nil
 }
