@@ -3,7 +3,6 @@ package fetchers
 import (
 	"errors"
 	"fmt"
-	"log"
 	"net/url"
 	"time"
 
@@ -102,10 +101,8 @@ func (f *TwitterFetcher) getUserTimeline(user string, time int64) ([]ReplyMessag
 				resources = append(resources, Resource{rURL, rType, rURL})
 			}
 
-			// log.Printf("got tweet id %d\nmedia[%d]\ntype: %s\nurl: %s", tweet.Id, index, media.Type, rURL)
 		}
 		ret = append(ret, ReplyMessage{resources, tweet.FullText, nil})
-		// log.Printf("got tweet id %d\ntext: %s\nres[len]: %d", tweet.Id, tweet.FullText, len(resources))
 	}
 	return ret, nil
 }
