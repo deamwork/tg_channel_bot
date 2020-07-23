@@ -112,9 +112,9 @@ func (t *TelegramBot) Send(to tb.Recipient, message f.ReplyMessage) error {
 		var err error
 		var mediaFile tb.InputMedia
 		if message.Resources[0].T == f.TIMAGE {
-			mediaFile = &tb.Photo{File: tb.FromURL(message.Resources[0].URL), Caption: message.Resources[0].Caption}
+			mediaFile = &tb.Photo{File: tb.FromURL(message.Resources[0].URL), Caption: message.Caption}
 		} else if message.Resources[0].T == f.TVIDEO {
-			mediaFile = &tb.Video{File: tb.FromURL(message.Resources[0].URL), Caption: message.Resources[0].Caption}
+			mediaFile = &tb.Video{File: tb.FromURL(message.Resources[0].URL), Caption: message.Caption}
 		} else {
 			return errors.New("Undefined message type.")
 		}
@@ -138,11 +138,21 @@ func (t *TelegramBot) Send(to tb.Recipient, message f.ReplyMessage) error {
 			end = len(message.Resources)
 		}
 		mediaFiles := make(tb.Album, 0, MaxAlbumSize)
-		for _, r := range message.Resources[i:end] {
+		for idx, r := range message.Resources[i : end-1] {
+			if idx != end {
+				if r.T == f.TIMAGE {
+					mediaFiles = append(mediaFiles, &tb.Photo{File: tb.FromURL(r.URL)})
+				} else if r.T == f.TVIDEO {
+					mediaFiles = append(mediaFiles, &tb.Video{File: tb.FromURL(r.URL)})
+				} else {
+					continue
+				}
+			}
+
 			if r.T == f.TIMAGE {
-				mediaFiles = append(mediaFiles, &tb.Photo{File: tb.FromURL(r.URL), Caption: r.Caption})
+				mediaFiles = append(mediaFiles, &tb.Photo{File: tb.FromURL(r.URL), Caption: message.Caption})
 			} else if r.T == f.TVIDEO {
-				mediaFiles = append(mediaFiles, &tb.Video{File: tb.FromURL(r.URL), Caption: r.Caption})
+				mediaFiles = append(mediaFiles, &tb.Video{File: tb.FromURL(r.URL), Caption: message.Caption})
 			} else {
 				continue
 			}
