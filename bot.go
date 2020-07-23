@@ -8,28 +8,28 @@ import (
 )
 
 func parseCli() (string, bool) {
-	var config_file string
+	var configFile string
 	var verbose bool
 	flag.BoolVar(&verbose, "v", true, "verbose mode")
-	flag.StringVar(&config_file, "c", "", "config file path")
+	flag.StringVar(&configFile, "c", "", "config file path")
 	flag.Parse()
-	return config_file, verbose
+	return configFile, verbose
 }
 
-func ListenExit(TGBOT *TelegramBot) {
+func ListenExit(telegramBot *TelegramBot) {
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt, os.Kill)
 	_ = <-c
-	TGBOT.Bot.Stop()
-	TGBOT.Database.Close()
+	telegramBot.Bot.Stop()
+	telegramBot.Database.Close()
 	log.Println("Exit.")
 }
 
 func main() {
-	config_path, _ := parseCli()
+	configPath, _ := parseCli()
 	t := TelegramBot{}
-	if config_path != "" {
-		t.LoadConfig(config_path)
+	if configPath != "" {
+		t.LoadConfig(configPath)
 	} else {
 		t.LoadConfigFromEnv()
 	}

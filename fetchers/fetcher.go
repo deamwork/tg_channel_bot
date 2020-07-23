@@ -2,12 +2,13 @@ package fetchers
 
 import (
 	"errors"
-	"github.com/asdine/storm"
-	"github.com/dghubble/sling"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"time"
+
+	"github.com/asdine/storm"
+	"github.com/dghubble/sling"
 )
 
 const (
@@ -68,12 +69,12 @@ func (f *BaseFetcher) HTTPGet(url string) ([]byte, error) {
 		return []byte{}, err
 	}
 	defer response.Body.Close()
-	resp_content, err := ioutil.ReadAll(response.Body)
+	respContent, err := ioutil.ReadAll(response.Body)
 	if err != nil {
 		log.Println("Unable to read response", err)
 		return []byte{}, err
 	}
-	return resp_content, nil
+	return respContent, nil
 }
 
 // For channel update
@@ -92,7 +93,7 @@ func (f *BaseFetcher) GetPushAtLeastOne(userid string, following []string) (ret 
 
 // Set last update time to several seconds before
 func (f *BaseFetcher) GoBack(string, int64) error {
-	return errors.New("Time machine unsupported for this site.")
+	return errors.New("time machine unsupported for this site")
 }
 
 func (f *BaseFetcher) Block(string) string {

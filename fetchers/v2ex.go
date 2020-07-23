@@ -42,14 +42,14 @@ type V2EXHot []struct {
 }
 
 func (f *V2EXFetcher) GetPush(string, []string) []ReplyMessage {
-	api_url := "https://www.v2ex.com/api/topics/hot.json"
-	resp_content, err := f.HTTPGet(api_url)
+	apiUrl := "https://www.v2ex.com/api/topics/hot.json"
+	respContent, err := f.HTTPGet(apiUrl)
 	if err != nil {
 		log.Println("Unable to crawl v2ex api", err)
 		return []ReplyMessage{{Err: err}}
 	}
 	hot := V2EXHot{}
-	if err := json.Unmarshal(resp_content, &hot); err != nil {
+	if err := json.Unmarshal(respContent, &hot); err != nil {
 		log.Println("Unable to load json", err)
 		return []ReplyMessage{{Err: err}}
 	}

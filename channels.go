@@ -2,12 +2,13 @@ package main
 
 import (
 	"errors"
-	"github.com/asdine/storm"
-	"github.com/ihciah/telebot"
-	f "github.com/ihciah/tg_channel_bot/fetchers"
 	"log"
 	"strings"
 	"time"
+
+	"github.com/asdine/storm"
+	f "github.com/deamwork/tg_channel_bot/fetchers"
+	"github.com/ihciah/telebot"
 )
 
 const (
@@ -89,7 +90,8 @@ func MakeModuleLabeler() *ModuleLabeler {
 func (cset *ChannelSetting) update(action int, param interface{}) {
 	pint, iok := param.(ModuleInterval)
 	puser, uok := param.(ModuleUser)
-	newadmin, aok := param.(string)
+	newAdmin, aok := param.(string)
+
 	switch action {
 	case ChannelActionEnable:
 		cset.Enabled = true
@@ -101,15 +103,18 @@ func (cset *ChannelSetting) update(action int, param interface{}) {
 				followings := make(map[int][]string)
 				cset.Followings = &followings
 			}
+
 			_, ok := (*cset.Followings)[puser.Module]
 			if !ok {
 				(*cset.Followings)[puser.Module] = make([]string, 0, 0)
 			}
+
 			for _, u := range (*cset.Followings)[puser.Module] {
 				if u == puser.Username {
 					return
 				}
 			}
+
 			(*cset.Followings)[puser.Module] = append((*cset.Followings)[puser.Module], puser.Username)
 			_, ok = (*cset.PushIntervals)[puser.Module]
 			if !ok {
@@ -133,22 +138,23 @@ func (cset *ChannelSetting) update(action int, param interface{}) {
 			intervals := make(map[int]int)
 			cset.PushIntervals = &intervals
 		}
+
 		if iok {
 			(*cset.PushIntervals)[pint.Module] = pint.PushInterval
 		}
 	case ChannelActionAddAdmin:
 		if aok {
 			for _, admin := range *cset.AdminUserIDs {
-				if newadmin == admin {
+				if newAdmin == admin {
 					return
 				}
 			}
-			*cset.AdminUserIDs = append(*cset.AdminUserIDs, newadmin)
+			*cset.AdminUserIDs = append(*cset.AdminUserIDs, newAdmin)
 		}
 	case ChannelActionDelAdmin:
 		if aok {
 			for i, admin := range *cset.AdminUserIDs {
-				if newadmin == admin {
+				if newAdmin == admin {
 					*cset.AdminUserIDs = append((*cset.AdminUserIDs)[:i], (*cset.AdminUserIDs)[i+1:]...)
 					return
 				}
@@ -161,7 +167,7 @@ func (cset *ChannelSetting) update(action int, param interface{}) {
 type Channel struct {
 	*ChannelSetting
 	DB             *storm.DB
-	TGBOT          *TelegramBot
+	TgBot          *TelegramBot
 	PushControl    chan int
 	Chat           *telebot.Chat
 	MessageControl chan int
@@ -170,14 +176,15 @@ type Channel struct {
 
 func (c *Channel) UpdateSettings(action int, param interface{}) {
 	c.update(action, param)
-	c.DB.Save(c.ChannelSetting)
+	_ = c.DB.Save(c.ChannelSetting)
 }
 
-func (c *Channel) PushModule(control chan int, module_id int, followings []string, wait_time time.Duration) {
-	fetcher := c.TGBOT.CreateModule(module_id, c.ID)
+func (c *Channel) PushModule(control chan int, moduleId int, followings []string, waitTime time.Duration) {
+	fetcher := c.TgBot.CreateModule(moduleId, c.ID)
 	for {
-		log.Printf("Will check for update for module %s-%s:%s", c.ID, MakeModuleLabeler().Module2Str(module_id), strings.Join(followings, ","))
-		next_start := time.After(wait_time)
+		log.Printf("Will check for update for module %s-%s:%s",
+			c.ID, MakeModuleLabeler().Module2Str(moduleId), strings.Join(followings, ","))
+		nextStart := time.After(waitTime)
 		func() {
 			defer func() {
 				if err := recover(); err != nil {
@@ -192,7 +199,7 @@ func (c *Channel) PushModule(control chan int, module_id int, followings []strin
 		case <-control:
 			log.Println("Received exit signal")
 			return
-		case <-next_start:
+		case <-nextStart:
 			log.Println("Sleeping")
 			continue
 		}
@@ -201,7 +208,7 @@ func (c *Channel) PushModule(control chan int, module_id int, followings []strin
 
 func (c *Channel) WaitSend() {
 	for {
-		tlimit := time.After(time.Duration(3) * time.Second)
+		timeLimit := time.After(time.Duration(3) * time.Second)
 		msg := <-c.MessageList
 		func() {
 			defer func() {
@@ -209,13 +216,13 @@ func (c *Channel) WaitSend() {
 					log.Println("Panic!", err)
 				}
 			}()
-			c.TGBOT.Send(c.Chat, msg)
+			_ = c.TgBot.Send(c.Chat, msg)
 		}()
 
 		select {
 		case <-c.MessageControl:
 			return
-		case <-tlimit:
+		case <-timeLimit:
 			continue
 		}
 	}
@@ -225,14 +232,14 @@ func (c *Channel) Push() {
 	go c.WaitSend()
 	for {
 		controllers := make([]chan int, 0, len(*c.Followings))
-		for module_id, followings := range *c.Followings {
+		for moduleId, followings := range *c.Followings {
 			signal := make(chan int, 1)
 			controllers = append(controllers, signal)
 			if len(followings) == 0 {
-				log.Printf("Module %d started but there's no followings.", module_id)
+				log.Printf("Module %d started but there's no followings.", moduleId)
 			} else {
-				go c.PushModule(signal, module_id, followings, time.Duration((*c.PushIntervals)[module_id])*time.Second)
-				log.Printf("Module %d started:%s.", module_id, strings.Join(followings, ","))
+				go c.PushModule(signal, moduleId, followings, time.Duration((*c.PushIntervals)[moduleId])*time.Second)
+				log.Printf("Module %d started:%s.", moduleId, strings.Join(followings, ","))
 			}
 		}
 		select {
@@ -292,77 +299,91 @@ func (c *Channel) UpdateInterval(interval ModuleInterval) {
 	c.Reload()
 }
 
-func MakeChannels(TGBOT *TelegramBot) []*Channel {
-	db := TGBOT.Database
-	var channel_settings []ChannelSetting
-	err := db.All(&channel_settings)
+func MakeChannels(telegramBot *TelegramBot) []*Channel {
+	db := telegramBot.Database
+	var channelSettings []ChannelSetting
+	err := db.All(&channelSettings)
 	if err != nil {
 		log.Fatal("Cannot read channel settings.", err)
 		return []*Channel{}
 	}
 	var channels []*Channel
-	for i := range channel_settings {
-		chat, err := TGBOT.Bot.ChatByID(channel_settings[i].ID)
+	for i := range channelSettings {
+		chat, err := telegramBot.Bot.ChatByID(channelSettings[i].ID)
 		if err != nil {
 			log.Println("Error when start chat.", err)
-			db.DeleteStruct(&channel_settings[i])
-			log.Printf("Chat %s deleted.\n", channel_settings[i].ID)
+			_ = db.DeleteStruct(&channelSettings[i])
+			log.Printf("Chat %s deleted.\n", channelSettings[i].ID)
 			continue
 		}
-		channels = append(channels, &Channel{&channel_settings[i], db, TGBOT, make(chan int),
+		channels = append(channels, &Channel{&channelSettings[i], db, telegramBot, make(chan int),
 			chat, make(chan int), make(chan f.ReplyMessage, DefaultMessageQueueSize)})
 	}
 	return channels
 }
 
-func AddChannelIfNotExists(TGBOT *TelegramBot, channel_id string) (*Channel, error) {
-	db := TGBOT.Database
+func AddChannelIfNotExists(telegramBot *TelegramBot, channelId string) (*Channel, error) {
+	db := telegramBot.Database
 	tx, err := db.Begin(true)
 	if err != nil {
 		return nil, err
 	}
+
 	defer tx.Rollback()
+
 	var c ChannelSetting
-	e := tx.One("ID", channel_id, &c)
+	e := tx.One("ID", channelId, &c)
 	if e != storm.ErrNotFound {
 		log.Println(e)
-		return nil, errors.New("Invalid channel id or channel already exists.")
+		return nil, errors.New("invalid channel id or channel already exists")
 	}
+
 	followings := make(map[int][]string)
 	intervals := make(map[int]int)
 	admins := make([]string, 0, 0)
-	channel_setting := ChannelSetting{ID: channel_id, Enabled: true, AdminUserIDs: &admins,
-		Followings: &followings, PushIntervals: &intervals}
-	e = tx.Save(&channel_setting)
+	channelSetting := ChannelSetting{
+		ID:            channelId,
+		Enabled:       true,
+		AdminUserIDs:  &admins,
+		Followings:    &followings,
+		PushIntervals: &intervals,
+	}
+
+	e = tx.Save(&channelSetting)
 	if e != nil {
 		log.Println(e)
-		return nil, errors.New("Invalid channel id or channel already exists.")
+		return nil, errors.New("invalid channel id or channel already exists")
 	}
-	chat, err := TGBOT.Bot.ChatByID(channel_id)
+
+	chat, err := telegramBot.Bot.ChatByID(channelId)
 	if err != nil {
 		log.Println("Error when start chat.", err)
-		return nil, errors.New("Cannot create chat.")
+		return nil, errors.New("cannot create chat")
 	}
+
 	log.Println("Channel added.")
-	tx.Commit()
-	return &Channel{&channel_setting, db, TGBOT, make(chan int), chat,
+	_ = tx.Commit()
+
+	return &Channel{&channelSetting, db, telegramBot, make(chan int), chat,
 		make(chan int), make(chan f.ReplyMessage, DefaultMessageQueueSize)}, nil
 }
 
-func DelChannelIfExists(TGBOT *TelegramBot, channel_id string) error {
-	db := TGBOT.Database
-	channel_setting := ChannelSetting{ID: channel_id}
-	err := db.DeleteStruct(&channel_setting)
+func DelChannelIfExists(telegramBot *TelegramBot, channelId string) error {
+	db := telegramBot.Database
+
+	err := db.DeleteStruct(&ChannelSetting{ID: channelId})
 	if err != nil {
 		log.Println("Error when delete channel.", err)
 		return err
 	}
+
 	return nil
 }
 
-func RunPusher(TGBOT *TelegramBot) {
-	channels := MakeChannels(TGBOT)
-	TGBOT.Channels = &channels
+func RunPusher(telegramBot *TelegramBot) {
+	channels := MakeChannels(telegramBot)
+	telegramBot.Channels = &channels
+
 	for _, c := range channels {
 		go c.Push()
 	}

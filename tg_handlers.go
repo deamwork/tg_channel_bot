@@ -1,10 +1,11 @@
 package main
 
 import (
-	tb "github.com/ihciah/telebot"
-	f "github.com/ihciah/tg_channel_bot/fetchers"
 	"strconv"
 	"strings"
+
+	f "github.com/deamwork/tg_channel_bot/fetchers"
+	tb "github.com/ihciah/telebot"
 )
 
 const AboutMessage = "This is a Bot designed for syncing message(text/image/video) " +
@@ -18,46 +19,46 @@ type FetcherConfig struct {
 	V2EX    f.V2EXFetcher
 }
 
-func (TGBOT *TelegramBot) CreateModule(module_id int, channel_id string) f.Fetcher {
+func (t *TelegramBot) CreateModule(moduleId int, channelId string) f.Fetcher {
 	var fetcher f.Fetcher
-	switch module_id {
+	switch moduleId {
 	case MTwitter:
-		fetcher = &TGBOT.FetcherConfigs.Twitter
+		fetcher = &t.FetcherConfigs.Twitter
 	case MTumblr:
-		fetcher = &TGBOT.FetcherConfigs.Tumblr
+		fetcher = &t.FetcherConfigs.Tumblr
 	case MV2EX:
-		fetcher = &TGBOT.FetcherConfigs.V2EX
+		fetcher = &t.FetcherConfigs.V2EX
 	default:
-		fetcher = &TGBOT.FetcherConfigs.Base
+		fetcher = &t.FetcherConfigs.Base
 	}
-	fetcher.Init(TGBOT.Database, channel_id)
+	_ = fetcher.Init(t.Database, channelId)
 	return fetcher
 }
 
-func (TGBOT *TelegramBot) RegisterHandler() {
-	TGBOT.Bot.Handle("/about", TGBOT.handle_about)
-	TGBOT.Bot.Handle("/id", TGBOT.handle_id)
-	//TGBOT.Bot.Handle("/example", TGBOT.handle_example_fetcher_example)
-	//TGBOT.Bot.Handle("/v2ex", TGBOT.handle_v2ex)
-	TGBOT.Bot.Handle(tb.OnText, TGBOT.handle_controller)
-	TGBOT.Bot.Handle(tb.OnPhoto, TGBOT.handle_photo)
+func (t *TelegramBot) RegisterHandler() {
+	t.Bot.Handle("/about", t.handleAbout)
+	t.Bot.Handle("/id", t.handleId)
+	// TgBot.Bot.Handle("/example", TgBot.handle_example_fetcher_example)
+	// TgBot.Bot.Handle("/v2ex", TgBot.handle_v2ex)
+	t.Bot.Handle(tb.OnText, t.handleController)
+	t.Bot.Handle(tb.OnPhoto, t.handlePhoto)
 }
 
-func (TGBOT *TelegramBot) handle_photo(m *tb.Message) {
-	chatid := strconv.FormatInt(m.OriginalChat.ID, 10)
+func (t *TelegramBot) handlePhoto(m *tb.Message) {
+	chatID := strconv.FormatInt(m.OriginalChat.ID, 10)
 	if m.OriginalChat.Type == "channel" {
-		chatid = "@" + m.OriginalChat.Username
+		chatID = "@" + m.OriginalChat.Username
 	}
 
 	pass := false
-	for _, v := range *TGBOT.Channels {
-		if v.ID == chatid && auth_user(m.Sender, *v.AdminUserIDs, TGBOT.Admins) {
+	for _, v := range *t.Channels {
+		if v.ID == chatID && authUser(m.Sender, *v.AdminUserIDs, t.Admins) {
 			pass = true
 			break
 		}
 	}
 	if !pass {
-		TGBOT.Bot.Send(m.Sender, "Unauthorized.")
+		_, _ = t.Bot.Send(m.Sender, "Unauthorized.")
 		return
 	}
 
@@ -65,58 +66,58 @@ func (TGBOT *TelegramBot) handle_photo(m *tb.Message) {
 	if strings.Contains(m.Caption, "tumblr") {
 		fetcher = new(f.TumblrFetcher)
 	}
-	fetcher.Init(TGBOT.Database, chatid)
-	TGBOT.Bot.Send(m.Sender, fetcher.Block(m.Caption))
+	_ = fetcher.Init(t.Database, chatID)
+	_, _ = t.Bot.Send(m.Sender, fetcher.Block(m.Caption))
 }
 
-func (TGBOT *TelegramBot) handle_about(m *tb.Message) {
-	TGBOT.Bot.Send(m.Sender, AboutMessage)
+func (t *TelegramBot) handleAbout(m *tb.Message) {
+	_, _ = t.Bot.Send(m.Sender, AboutMessage)
 }
 
-func (TGBOT *TelegramBot) handle_id(m *tb.Message) {
-	TGBOT.Bot.Send(m.Chat, TGBOT.h_getid([]string{}, m))
+func (t *TelegramBot) handleId(m *tb.Message) {
+	_, _ = t.Bot.Send(m.Chat, t.hGetId([]string{}, m))
 }
 
-func (TGBOT *TelegramBot) handle_example_fetcher_example(m *tb.Message) {
+func (t *TelegramBot) handleExampleFetcherExample(m *tb.Message) {
 	var fetcher f.Fetcher = new(f.ExampleFetcher)
-	fetcher.Init(TGBOT.Database, "")
-	TGBOT.SendAll(m.Sender, fetcher.GetPushAtLeastOne(strconv.Itoa(m.Sender.ID), []string{}))
+	_ = fetcher.Init(t.Database, "")
+	_ = t.SendAll(m.Sender, fetcher.GetPushAtLeastOne(strconv.Itoa(m.Sender.ID), []string{}))
 }
 
-func (TGBOT *TelegramBot) handle_v2ex(m *tb.Message) {
+func (t *TelegramBot) handleV2ex(m *tb.Message) {
 	var fetcher f.Fetcher = new(f.V2EXFetcher)
-	fetcher.Init(TGBOT.Database, "")
-	TGBOT.SendAll(m.Sender, fetcher.GetPushAtLeastOne(strconv.Itoa(m.Sender.ID), []string{}))
+	_ = fetcher.Init(t.Database, "")
+	_ = t.SendAll(m.Sender, fetcher.GetPushAtLeastOne(strconv.Itoa(m.Sender.ID), []string{}))
 }
 
-func (TGBOT *TelegramBot) handle_controller(m *tb.Message) {
+func (t *TelegramBot) handleController(m *tb.Message) {
 	handlers := map[string]func([]string, *tb.Message) string{
-		"addchannel":  TGBOT.requireSuperAdmin(TGBOT.h_addchannel),
-		"delchannel":  TGBOT.requireSuperAdmin(TGBOT.h_delchannel),
-		"listchannel": TGBOT.requireSuperAdmin(TGBOT.h_listchannel),
-		"addfollow":   TGBOT.h_addfollow,
-		"delfollow":   TGBOT.h_delfollow,
-		"listfollow":  TGBOT.h_listfollow,
-		"addadmin":    TGBOT.requireSuperAdmin(TGBOT.h_addadmin),
-		"deladmin":    TGBOT.requireSuperAdmin(TGBOT.h_deladmin),
-		"listadmin":   TGBOT.requireSuperAdmin(TGBOT.h_listadmin),
-		"setinterval": TGBOT.h_setinterval,
-		"goback":      TGBOT.h_goback,
-		"id":          TGBOT.h_getid,
+		"addchannel":  t.requireSuperAdmin(t.hAddChannel),
+		"delchannel":  t.requireSuperAdmin(t.hDelChannel),
+		"listchannel": t.requireSuperAdmin(t.hListChannel),
+		"addfollow":   t.hAddFollow,
+		"delfollow":   t.hDelFollow,
+		"listfollow":  t.hListFollow,
+		"addadmin":    t.requireSuperAdmin(t.hAddAdmin),
+		"deladmin":    t.requireSuperAdmin(t.hDelAdmin),
+		"listadmin":   t.requireSuperAdmin(t.hListAdmin),
+		"setinterval": t.hSetInterval,
+		"goback":      t.hGoBack,
+		"id":          t.hGetId,
 	}
 
 	var cmd string
 	var params []string
 	commands := strings.Fields(m.Text)
-	if _, command_in := handlers[commands[0]]; command_in {
+	if _, commandIn := handlers[commands[0]]; commandIn {
 		cmd, params = commands[0], commands[1:]
-		TGBOT.Send(m.Sender, f.ReplyMessage{Caption: handlers[cmd](params, m)})
+		_ = t.Send(m.Sender, f.ReplyMessage{Caption: handlers[cmd](params, m)})
 	} else {
-		available_commands := make([]string, 0, len(handlers))
+		availableCommands := make([]string, 0, len(handlers))
 		for c := range handlers {
-			available_commands = append(available_commands, c)
+			availableCommands = append(availableCommands, c)
 		}
-		reply := AboutMessage + "\nAlso, you can send /id to any chat to get chatid." + "\n\nUnrecognized command.\nAvailable commands: \n" + strings.Join(available_commands, "\n")
-		TGBOT.Send(m.Sender, f.ReplyMessage{Caption: reply})
+		reply := AboutMessage + "\nAlso, you can send /id to any chat to get chatid." + "\n\nUnrecognized command.\nAvailable commands: \n" + strings.Join(availableCommands, "\n")
+		_ = t.Send(m.Sender, f.ReplyMessage{Caption: reply})
 	}
 }

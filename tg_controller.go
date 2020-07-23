@@ -3,14 +3,15 @@ package main
 import (
 	"encoding/json"
 	"errors"
-	"github.com/asdine/storm"
-	"github.com/coreos/bbolt"
-	tb "github.com/ihciah/telebot"
-	f "github.com/ihciah/tg_channel_bot/fetchers"
 	"io/ioutil"
 	"log"
-	"time"
 	"os"
+	"time"
+
+	"github.com/asdine/storm"
+	f "github.com/deamwork/tg_channel_bot/fetchers"
+	tb "github.com/ihciah/telebot"
+	bolt "go.etcd.io/bbolt"
 )
 
 const MaxAlbumSize = 10
@@ -26,83 +27,83 @@ type TelegramBot struct {
 	Admins         []string `json:"admins"`
 }
 
-func (TGBOT *TelegramBot) LoadConfigFromEnv() {
-	TGBOT.Token = os.Getenv("BOT_TOKEN")
-	TGBOT.DatabasePath = "database.db"
-	TGBOT.Timeout = 120
+func (t *TelegramBot) LoadConfigFromEnv() {
+	t.Token = os.Getenv("BOT_TOKEN")
+	t.DatabasePath = "database.db"
+	t.Timeout = 120
 
 	admin := []string{os.Getenv("ADMIN_NAME")}
-	TGBOT.Admins = admin
+	t.Admins = admin
 
-	var tumblrfetcher f.TumblrFetcher
-	tumblrfetcher.OAuthConsumerKey = os.Getenv("TUMBLR_KEY")
-	tumblrfetcher.OAuthConsumerSecret = os.Getenv("TUMBLR_SECRET")
-	tumblrfetcher.OAuthToken = os.Getenv("TUMBLR_TOKEN")
-	tumblrfetcher.OAuthTokenSecret = os.Getenv("TUMBLR_TOKEN_SECRET")
+	var tumblrFetcher f.TumblrFetcher
+	tumblrFetcher.OAuthConsumerKey = os.Getenv("TUMBLR_KEY")
+	tumblrFetcher.OAuthConsumerSecret = os.Getenv("TUMBLR_SECRET")
+	tumblrFetcher.OAuthToken = os.Getenv("TUMBLR_TOKEN")
+	tumblrFetcher.OAuthTokenSecret = os.Getenv("TUMBLR_TOKEN_SECRET")
 
-	var twitterfetcher f.TwitterFetcher
-	twitterfetcher.AccessTokenSecret = os.Getenv("TWITTER_TOKEN_SECRET")
-	twitterfetcher.AccessToken = os.Getenv("TWITTER_TOKEN")
-	twitterfetcher.ConsumerKey = os.Getenv("TWITTER_KEY")
-	twitterfetcher.ConsumerSecret = os.Getenv("TWITTER_SECRET")
+	var twitterFetcher f.TwitterFetcher
+	twitterFetcher.AccessTokenSecret = os.Getenv("TWITTER_TOKEN_SECRET")
+	twitterFetcher.AccessToken = os.Getenv("TWITTER_TOKEN")
+	twitterFetcher.ConsumerKey = os.Getenv("TWITTER_KEY")
+	twitterFetcher.ConsumerSecret = os.Getenv("TWITTER_SECRET")
 
-	var fetcherconfig FetcherConfig
-	fetcherconfig.Tumblr = tumblrfetcher
-	fetcherconfig.Twitter = twitterfetcher
+	var fetcherConfig FetcherConfig
+	fetcherConfig.Tumblr = tumblrFetcher
+	fetcherConfig.Twitter = twitterFetcher
 
-	TGBOT.FetcherConfigs = fetcherconfig
+	t.FetcherConfigs = fetcherConfig
 
 	var err error
-	TGBOT.Bot, err = tb.NewBot(tb.Settings{
-		Token:       TGBOT.Token,
-		Poller:      &tb.LongPoller{Timeout: time.Duration(TGBOT.Timeout) * time.Second},
-		HTTPTimeout: TGBOT.Timeout,
+	t.Bot, err = tb.NewBot(tb.Settings{
+		Token:       t.Token,
+		Poller:      &tb.LongPoller{Timeout: time.Duration(t.Timeout) * time.Second},
+		HTTPTimeout: t.Timeout,
 	})
 	if err != nil {
 		log.Fatal("[Cannot initialize telegram Bot]", err)
 		return
 	}
 
-	TGBOT.Database, err = storm.Open(TGBOT.DatabasePath, storm.BoltOptions(0600, &bolt.Options{Timeout: 5 * time.Second}))
+	t.Database, err = storm.Open(t.DatabasePath, storm.BoltOptions(0600, &bolt.Options{Timeout: 5 * time.Second}))
 	if err != nil {
 		log.Fatal("[Cannot initialize database]", err)
 	}
-	log.Printf("[Bot initialized]Token: %s\nTimeout: %d\n", TGBOT.Token, TGBOT.Timeout)
+	log.Printf("[Bot initialized]Token: %s\nTimeout: %d\n", t.Token, t.Timeout)
 }
 
-func (TGBOT *TelegramBot) LoadConfig(json_path string) {
+func (t *TelegramBot) LoadConfig(json_path string) {
 	data, err := ioutil.ReadFile(json_path)
 	if err != nil {
 		log.Fatal("[Cannot read telegram config]", err)
 		return
 	}
-	if err := json.Unmarshal(data, TGBOT); err != nil {
+	if err := json.Unmarshal(data, t); err != nil {
 		log.Fatal("[Cannot parse telegram config]", err)
 		return
 	}
-	TGBOT.Bot, err = tb.NewBot(tb.Settings{
-		Token:       TGBOT.Token,
-		Poller:      &tb.LongPoller{Timeout: time.Duration(TGBOT.Timeout) * time.Second},
-		HTTPTimeout: TGBOT.Timeout,
+	t.Bot, err = tb.NewBot(tb.Settings{
+		Token:       t.Token,
+		Poller:      &tb.LongPoller{Timeout: time.Duration(t.Timeout) * time.Second},
+		HTTPTimeout: t.Timeout,
 	})
 	if err != nil {
 		log.Fatal("[Cannot initialize telegram Bot]", err)
 		return
 	}
 
-	TGBOT.Database, err = storm.Open(TGBOT.DatabasePath, storm.BoltOptions(0600, &bolt.Options{Timeout: 5 * time.Second}))
+	t.Database, err = storm.Open(t.DatabasePath, storm.BoltOptions(0600, &bolt.Options{Timeout: 5 * time.Second}))
 	if err != nil {
 		log.Fatal("[Cannot initialize database]", err)
 	}
-	log.Printf("[Bot initialized]Token: %s\nTimeout: %d\n", TGBOT.Token, TGBOT.Timeout)
+	log.Printf("[Bot initialized]Token: %s\nTimeout: %d\n", t.Token, t.Timeout)
 }
 
-func (TGBOT *TelegramBot) Serve() {
-	TGBOT.RegisterHandler()
-	TGBOT.Bot.Start()
+func (t *TelegramBot) Serve() {
+	t.RegisterHandler()
+	t.Bot.Start()
 }
 
-func (TGBOT *TelegramBot) Send(to tb.Recipient, message f.ReplyMessage) error {
+func (t *TelegramBot) Send(to tb.Recipient, message f.ReplyMessage) error {
 	if message.Err != nil {
 		return message.Err
 	}
@@ -117,12 +118,12 @@ func (TGBOT *TelegramBot) Send(to tb.Recipient, message f.ReplyMessage) error {
 		} else {
 			return errors.New("Undefined message type.")
 		}
-		_, err = TGBOT.Bot.Send(to, mediaFile)
+		_, err = t.Bot.Send(to, mediaFile)
 		return err
 	}
 
 	if len(message.Resources) == 0 {
-		if _, err := TGBOT.Bot.Send(to, message.Caption); err != nil {
+		if _, err := t.Bot.Send(to, message.Caption); err != nil {
 			log.Println("Unable to send text:", message.Caption)
 			return err
 		} else {
@@ -146,7 +147,7 @@ func (TGBOT *TelegramBot) Send(to tb.Recipient, message f.ReplyMessage) error {
 				continue
 			}
 		}
-		if _, err := TGBOT.Bot.SendAlbum(to, mediaFiles); err != nil {
+		if _, err := t.Bot.SendAlbum(to, mediaFiles); err != nil {
 			log.Println("Unable to send album", err)
 			ret = err
 		} else {
@@ -156,10 +157,10 @@ func (TGBOT *TelegramBot) Send(to tb.Recipient, message f.ReplyMessage) error {
 	return ret
 }
 
-func (TGBOT *TelegramBot) SendAll(to tb.Recipient, messages []f.ReplyMessage) (err error) {
+func (t *TelegramBot) SendAll(to tb.Recipient, messages []f.ReplyMessage) (err error) {
 	err = nil
 	for _, msg := range messages {
-		go TGBOT.Send(to, msg)
+		go t.Send(to, msg)
 	}
 	return
 }
