@@ -76,7 +76,7 @@ func (f *TwitterFetcher) getUserTimeline(user string, time int64) ([]ReplyMessag
 		resources := make([]Resource, 0, len(tweet.ExtendedEntities.Media))
 		// 遍历扩展字段，找图像/视频等资源，注意扩展字段内的才是原始资源
 		// ref: https://developer.twitter.com/en/docs/tweets/data-dictionary/overview/extended-entities-object
-		for index, media := range tweet.ExtendedEntities.Media {
+		for _, media := range tweet.ExtendedEntities.Media {
 			var rType int
 			var rURL string
 
