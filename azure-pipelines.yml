@@ -11,32 +11,25 @@ pool:
 
 variables:
   GOBIN:  '$(GOPATH)/bin' # Go binaries path
-  GOROOT: '/usr/local/go1.13' # Go installation path
   GOPATH: '$(system.defaultWorkingDirectory)/gopath' # Go workspace path
   modulePath: '$(GOPATH)/src/github.com/$(build.repository.name)' # Path to the module's code
 
-steps:
-- task: Go@0
+steps: 
+- task: GoTool@0
   inputs:
-    command: 'custom'
-    customCommand: 'version'
-  displayName: 'Get go version...'
-
+    version: '1.13.5'
 - task: Go@0
   inputs:
     command: 'get'
-    arguments: '-v -t -d ./...'
-    workingDirectory: '$(modulePath)'
-  displayName: 'Get deps...'
-
+    arguments: '-d'
+    workingDirectory: '$(System.DefaultWorkingDirectory)'
 - task: Go@0
   inputs:
-   command: 'build'
-   arguments: '-v .'
-   workingDirectory: '$(modulePath)'
-  displayName: 'Build'
-  env:
-    CGO_ENABLED: 0 
-    GOARCH: amd64 
-    GOOS: linux
-
+    command: 'build'
+    workingDirectory: '$(System.DefaultWorkingDirectory)'
+- task: CopyFiles@2
+  inputs:
+    TargetFolder: '$(Build.ArtifactStagingDirectory)'
+- task: PublishBuildArtifacts@1
+  inputs:
+     artifactName: drop
