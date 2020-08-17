@@ -26,9 +26,11 @@ steps:
 - task: Go@0
   inputs:
     command: 'build'
+    arguments: '-o tgbot'
     workingDirectory: '$(System.DefaultWorkingDirectory)'
 - task: CopyFiles@2
   inputs:
+    Contents: 'tgbot'
     TargetFolder: '$(Build.ArtifactStagingDirectory)'
 - task: PublishBuildArtifacts@1
   inputs:
