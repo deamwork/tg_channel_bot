@@ -27,13 +27,27 @@ steps:
     echo '##vso[task.prependpath]$(GOROOT)/bin'
   displayName: 'Set up the Go workspace'
 
-- script: |
-    go version
-    go get -v -t -d ./...
-    if [ -f Gopkg.toml ]; then
-        curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
-        dep ensure
-    fi
-    CGO_ENABLED=0 GOARCH=amd64 GOOS=linux go build -v .
-  workingDirectory: '$(modulePath)'
-  displayName: 'Get dependencies, then build'
+- task: Go@0
+  inputs:
+    command: 'custom'
+    customCommand: 'version'
+  displayName: 'Get go version...'
+
+- task: Go@0
+  inputs:
+    command: 'get'
+    arguments: '-v -t -d ./...'
+    workingDirectory: '$(modulePath)'
+  displayName: 'Get deps...'
+
+- task: Go@0
+  inputs:
+   command: 'build'
+   arguments: '-v .'
+   workingDirectory: '$(modulePath)'
+  displayName: 'Build'
+  env:
+    CGO_ENABLED: 0 
+    GOARCH: amd64 
+    GOOS: linux
+
